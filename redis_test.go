@@ -13,13 +13,13 @@ func TestRedisMutex(t *testing.T) {
 		t.Fatalf("init redis object error: %s", err)
 	}
 
-	m1, err := r.NewMutex(123)
+	m1, err := r.NewMutex(123, 1)
 	if err != nil {
 		t.Fatalf("making new mutex error: %s", err)
 	}
 	mu1 := m1.(*RedisMutex)
 
-	m2, err := r.NewMutex(123)
+	m2, err := r.NewMutex(123, 1)
 	if err != nil {
 		t.Fatalf("making new mutex error: %s", err)
 	}

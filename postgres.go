@@ -68,16 +68,18 @@ func NewPostgres(conf PostgresOpts) (_ *Postgres, err error) {
 	}, nil
 }
 
-func (r *Postgres) NewMutex(key int64) (Mutex, error) {
+func (r *Postgres) NewMutex(key int64, tryCount int) (Mutex, error) {
 	return &PostgresMutex{
 		client: r.client,
 		key:    key,
+		try:    tryCount,
 	}, nil
 }
 
 type PostgresMutex struct {
 	client  *pgx.ConnPool
 	key     int64
+	try     int
 	monitor chan struct{}
 	mu      sync.Mutex
 	tok     string
@@ -99,6 +101,7 @@ func (s *PostgresMutex) lock() error {
 		err    error
 		ok     bool
 		jitter time.Duration
+		try    int
 	)
 
 	for {
@@ -115,8 +118,12 @@ func (s *PostgresMutex) lock() error {
 			return err
 		}
 
+		try++
+
 		if ok {
 			return nil
+		} else if s.try > 0 && s.try <= try {
+			return ErrMaxTryGetLock
 		}
 
 		if err = s.tx.Rollback(); err != nil {

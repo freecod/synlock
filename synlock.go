@@ -14,7 +14,7 @@ type (
 	}
 
 	Synlock interface {
-		NewMutex(key int64) (Mutex, error)
+		NewMutex(key int64, tryCount int) (Mutex, error)
 	}
 )
 

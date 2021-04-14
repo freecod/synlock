@@ -34,6 +34,7 @@ var (
 	ErrRedisInvalidAddr     = errors.New("invalid redis address")
 	ErrRedisKeyDoesNotExist = errors.New("key does not exist")
 	ErrRedisInvalidPrefix   = errors.New("invalid redis key prefix")
+	ErrMaxTryGetLock        = errors.New("all try get lock is failed")
 )
 
 var DefRedisOpts = RedisOpts{
@@ -74,16 +75,18 @@ func NewRedis(conf RedisOpts) (*Redis, error) {
 	}, nil
 }
 
-func (r *Redis) NewMutex(key int64) (Mutex, error) {
+func (r *Redis) NewMutex(key int64, tryCount int) (Mutex, error) {
 	return &RedisMutex{
 		client: r.client,
 		key:    fmt.Sprintf("%s:%d", r.prefix, key),
+		try:    tryCount,
 	}, nil
 }
 
 type RedisMutex struct {
 	client  *redis.Client
 	key     string
+	try     int
 	monitor chan struct{}
 	mu      sync.Mutex
 	tok     string
@@ -104,6 +107,7 @@ func (s *RedisMutex) lock() error {
 		ok     bool
 		err    error
 		jitter time.Duration
+		try    int
 	)
 
 	token := make([]byte, 20)
@@ -121,6 +125,12 @@ func (s *RedisMutex) lock() error {
 		ok, err = s.client.SetNX(s.key, s.tok, time.Minute).Result()
 		if err != nil {
 			return err
+		}
+
+		try++
+
+		if !ok && s.try > 0 && s.try <= try {
+			return ErrMaxTryGetLock
 		}
 
 		switch {

@@ -1,4 +1,4 @@
-module github.com/lukashes/synlock
+module github.com/freecod/synlock
 
 go 1.12
 
